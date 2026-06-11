@@ -1,0 +1,9 @@
+data/
+envs/
+logs/
+pipeline_output/
+Xenium_benchmarking/
+*.log
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
