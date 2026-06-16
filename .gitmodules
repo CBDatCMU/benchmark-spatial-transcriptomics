@@ -1,0 +1,3 @@
+[submodule "Xenium_benchmarking"]
+	path = Xenium_benchmarking
+	url = git@github.com:Moldia/Xenium_benchmarking.git
