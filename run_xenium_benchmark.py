@@ -2,6 +2,12 @@
 
 import os
 import sys
+
+# ── Banksy submodule path ──────────────────────────────────────────────────────
+_repo = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(_repo, 'Xenium_benchmarking'))
+sys.path.insert(0, os.path.join(_repo, 'Xenium_benchmarking', 'Banksy_py'))
+
 import time
 import logging
 import numpy as np
@@ -12,11 +18,6 @@ import matplotlib
 matplotlib.use('Agg')  # non-interactive backend for HPC (no display)
 import matplotlib.pyplot as plt
 import squidpy as sq
-
-# ── Banksy submodule path ──────────────────────────────────────────────────────
-banksy_path = os.path.join(os.path.expanduser('~'), 'xenium_benchmark', 'Xenium_benchmarking', 'Banksy_py')
-if banksy_path not in sys.path:
-    sys.path.insert(0, banksy_path)
 
 # ── xb package imports ─────────────────────────────────────────────────────────
 from xb.formatting import *

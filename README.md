@@ -17,7 +17,7 @@ https://doi.org/10.5281/zenodo.11120922
 To download:
 
 ```
-cd ~/xenium_benchmark
+cd ~/benchmark-spatial-transcriptomics
 bash download_data.sh
 ```
 
@@ -31,11 +31,19 @@ Clone this repository along with the origianl Xenium benchmarking pipeline:
 ```
 git clone --recurse-submodules https://github.com/CBDatCMU/benchmark-spatial-transcriptomics.git
 cd benchmark-spatial-transcriptomics
+
+# Update the submodule
+git submodule update --init --recursive
 ```
 
 Install the conda environment:
  
 ```
+# Make sure that the current shell session is able to use conda
+# This must be run once per login session.
+source ~/miniconda3/etc/profile.d/conda.sh
+
+# create and activate the conda environment
 conda env create --file Xenium_benchmarking/xenium_benchmarking.yml --prefix ./envs/xb
 conda activate ./envs/xb
 pip install -e Xenium_benchmarking/
@@ -48,7 +56,7 @@ pip install -e Xenium_benchmarking/
 sbatch submit_xenium.sh
 
 # Run directly
-cd ~/xenium_benchmark
+cd ~/benchmark-spatial-transcriptomics
 conda activate ~/xenium_benchmark/envs/xb
 python run_xenium_benchmark.py
 ```
