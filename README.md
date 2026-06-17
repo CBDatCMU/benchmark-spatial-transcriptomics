@@ -26,14 +26,11 @@ This will place the data at `data/example_spinal_chord_inactive/`. If that folde
 If automatic download fails, download `example_spinal_chord_inactive.zip` manually from the link above and extract it into `data/`.
 
 ## Setup
-Clone this repository along with the origianl Xenium benchmarking pipeline:
+Clone this repository along with the original Xenium benchmarking pipeline:
  
 ```
 git clone --recurse-submodules https://github.com/CBDatCMU/benchmark-spatial-transcriptomics.git
 cd benchmark-spatial-transcriptomics
-
-# Update the submodule
-git submodule update --init --recursive
 ```
 
 Install the conda environment:
