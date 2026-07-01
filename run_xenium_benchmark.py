@@ -19,6 +19,13 @@ matplotlib.use('Agg')  # non-interactive backend for HPC (no display)
 import matplotlib.pyplot as plt
 import squidpy as sq
 
+# ── Banksy submodule path ──────────────────────────────────────────────────────
+banksy_path = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), 'Banksy_py')
+)
+if banksy_path not in sys.path:
+    sys.path.insert(0, banksy_path)
+
 # ── xb package imports ─────────────────────────────────────────────────────────
 from xb.formatting import *
 from xb.plotting import *
@@ -27,6 +34,8 @@ from xb.Spage_main import *
 from xb.calculating import *
 from xb.domain_identification import *
 from xb.neighborhood import *
+import xb.calculating
+xb.calculating.sq = sq
 
 # ── Logging setup ──────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -183,14 +192,6 @@ with timed("Step 3: Preprocess + cluster"):
 # 4. Domain identification
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Ensure unique_cell_id exists before domain identification
-adata.obs_names_make_unique()
-if "unique_cell_id" not in adata.obs.columns:
-    adata.obs["unique_cell_id"] = (
-        adata.obs["sample"].astype(str) + "_" +
-        adata.obs["cell_id"].astype(str)
-    )
-
 # ── 4.1 Banksy ────────────────────────────────────────────────────────────────
 with timed("Step 4.1: Banksy domain identification"):
     import random
@@ -199,11 +200,6 @@ with timed("Step 4.1: Banksy domain identification"):
     random.seed(random_seed)
 
     adata = sc.read(OUTPUT_PATH + 'combined_processed.h5ad')
-    adata.obs_names_make_unique()
-    adata.obs["unique_cell_id"] = (
-        adata.obs["sample"].astype(str) + "_" +
-        adata.obs["cell_id"].astype(str)
-    )
     adata, adata_banksy = domains_by_banksy(
         adata,
         plot_path=PLOT_PATH,
@@ -249,6 +245,7 @@ log.info("Step 5: SpaGE imputation — skipped (no scRNA-seq reference).")
 # 6. Spatially variable genes (Moran's I)
 # ══════════════════════════════════════════════════════════════════════════════
 with timed("Step 6: Spatially variable genes (Moran's I)"):
+    import squidpy as sq
     adata, hs_results = svf_moranI(adata, radius=50.0)
     log.info(f"  Top 10 SVGs:\n{hs_results.head(10)}")
     if save:
