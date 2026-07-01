@@ -67,7 +67,7 @@ def timed(label):
 # ══════════════════════════════════════════════════════════════════════════════
 # 0. Parameters
 # ══════════════════════════════════════════════════════════════════════════════
-BASE        = os.path.expanduser('~/xenium_benchmark')
+BASE        = os.path.expanduser('os.path.abspath(__file__)')
 DATA_DIR    = os.path.join(BASE, 'data')
 REPO_DIR    = os.path.join(BASE, 'Xenium_benchmarking')
 OUTPUT_PATH = os.path.join(BASE, 'pipeline_output') + '/'
