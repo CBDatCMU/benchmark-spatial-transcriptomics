@@ -10,6 +10,7 @@ echo "Job started : $(date)"
 echo "Node        : $(hostname)"
 echo "Node list   : $SLURM_NODELIST"
 echo "CPUs        : $SLURM_CPUS_PER_TASK"
+echo "CPU model   : $(lscpu | grep 'Model name' | awk -F: '{print $2}' | xargs)"
 echo "Memory      : $SLURM_MEM_PER_NODE MB"
  
 # ── Activate conda env ────────────────────────────────────────────────────────
