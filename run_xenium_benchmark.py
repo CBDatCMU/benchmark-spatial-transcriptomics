@@ -203,21 +203,27 @@ with timed("Step 1: Format Xenium → AnnData"):
                 )
             except Exception:
                 pass
-    adata_raw.uns['spots'] = spots
 
-    adata = keep_nuclei_and_quality(
-        adata_raw,
-        tag=SAMPLE_NAME,
-        max_nucleus_distance=max_nucleus_distance,
-        min_quality=min_quality,
-        save=False,
-        output_path=OUTPUT_PATH,
-    )
+    adata_raw.uns['spots'] = spots
+    if 'nucleus_distance' in spots.columns:
+        adata = keep_nuclei_and_quality(
+            adata_raw,
+            tag=SAMPLE_NAME,
+            max_nucleus_distance=max_nucleus_distance,
+            min_quality=min_quality,
+            save=False,
+            output_path=OUTPUT_PATH,
+        )
+    else:
+        keep_ids = spots.loc[spots['overlaps_nucleus'] == 1, 'cell_id'].unique()
+        adata = adata_raw[adata_raw.obs['cell_id'].isin(keep_ids)].copy()
+        adata.uns['spots'] = spots
+        log.info("  Old format detected: filtering by overlaps_nucleus instead of nucleus_distance")
 
     adata.obs_names_make_unique()
-    adata.obs['expressed_genes'] = np.sum(adata.X > 0, axis=1)
-    adata.obs['n_counts']        = np.sum(adata.X,     axis=1)
-    adata.obs['n_genes']         = np.sum(adata.X > 0, axis=1)
+    adata.obs['expressed_genes'] = np.asarray(np.sum(adata.X > 0, axis=1)).flatten()
+    adata.obs['n_counts']        = np.asarray(np.sum(adata.X,     axis=1)).flatten()
+    adata.obs['n_genes']         = np.asarray(np.sum(adata.X > 0, axis=1)).flatten()
 
     log.info(f"  adata shape after filtering: {adata.shape}")
 
