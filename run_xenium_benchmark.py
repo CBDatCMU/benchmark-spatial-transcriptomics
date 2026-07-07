@@ -2,8 +2,16 @@
 
 import os
 import sys
+
+# ── Banksy submodule path ──────────────────────────────────────────────────────
+_repo = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(_repo, 'Xenium_benchmarking'))
+sys.path.insert(0, os.path.join(_repo, 'Xenium_benchmarking', 'Banksy_py'))
+
 import time
+import shutil
 import logging
+import argparse
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -14,7 +22,9 @@ import matplotlib.pyplot as plt
 import squidpy as sq
 
 # ── Banksy submodule path ──────────────────────────────────────────────────────
-banksy_path = os.path.join(os.path.expanduser('~'), 'xenium_benchmark', 'Xenium_benchmarking', 'Banksy_py')
+banksy_path = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), 'Banksy_py')
+)
 if banksy_path not in sys.path:
     sys.path.insert(0, banksy_path)
 
@@ -26,8 +36,11 @@ from xb.Spage_main import *
 from xb.calculating import *
 from xb.domain_identification import *
 from xb.neighborhood import *
+import xb.calculating
+xb.calculating.sq = sq
 
 # ── Logging setup ──────────────────────────────────────────────────────────────
+from datetime import datetime
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s  %(levelname)s  %(message)s',
@@ -37,6 +50,11 @@ logging.basicConfig(
     ]
 )
 log = logging.getLogger(__name__)
+
+import subprocess
+
+def _sh(cmd):
+    return subprocess.getoutput(cmd).strip()
 
 # ── Timing helper ──────────────────────────────────────────────────────────────
 _timings = {}
@@ -57,7 +75,23 @@ def timed(label):
 # ══════════════════════════════════════════════════════════════════════════════
 # 0. Parameters
 # ══════════════════════════════════════════════════════════════════════════════
-BASE        = os.path.expanduser('~/xenium_benchmark')
+
+SAMPLES = {
+    'spinal_cord': 'example_spinal_chord_inactive',
+    'brain1': 'output-XETG00047__0003467__brain1__20230331__153000',
+    'brain2': 'output-XETG00047__0003467__brain2__20230331__153000',
+    'brain3': 'output-XETG00047__0003304__brain3__20230331__153000',
+    'brain4': 'output-XETG00047__0003304__brain4__20230331__153000',
+}
+
+parser = argparse.ArgumentParser(description='Xenium end-to-end benchmark pipeline')
+parser.add_argument('--sample', type=str, default='spinal_cord',
+                    choices=SAMPLES.keys(),
+                    help='Sample to run. Options: ' + ', '.join(SAMPLES.keys()))
+args = parser.parse_args()
+
+
+BASE        = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR    = os.path.join(BASE, 'data')
 REPO_DIR    = os.path.join(BASE, 'Xenium_benchmarking')
 OUTPUT_PATH = os.path.join(BASE, 'pipeline_output') + '/'
@@ -69,12 +103,11 @@ os.makedirs(PLOT_PATH,   exist_ok=True)
 os.makedirs(LOG_PATH,    exist_ok=True)
 
 # Add file handler to logging now that LOG_PATH exists
-fh = logging.FileHandler(os.path.join(LOG_PATH, 'benchmark.log'))
-fh.setFormatter(logging.Formatter('%(asctime)s  %(levelname)s  %(message)s',
-                                   datefmt='%Y-%m-%d %H:%M:%S'))
+timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+fh = logging.FileHandler(os.path.join(LOG_PATH, f'benchmark_{args.sample}_{timestamp}.log'))
 log.addHandler(fh)
 
-SAMPLE_NAME = 'example_spinal_chord_inactive'
+SAMPLE_NAME = SAMPLES[args.sample]
 files       = [os.path.join(DATA_DIR, SAMPLE_NAME)]
 
 save = True
@@ -120,6 +153,32 @@ hyperparameters_rbd = {
 
 log.info("Pipeline parameters set.")
 log.info(f"  Sample : {SAMPLE_NAME}")
+
+data_size = shutil.disk_usage(files[0])
+data_size_gb = sum(
+    os.path.getsize(os.path.join(dp, f))
+    for dp, dn, filenames in os.walk(files[0])
+    for f in filenames
+) / 1e9
+log.info(f"  Data size : {data_size_gb:.2f} GB")
+
+node = _sh('hostname')
+os_info = _sh('uname -sr')
+cpu_model = _sh('lscpu | grep "Model name" | awk -F: \'{print $2}\' | xargs')
+ram = _sh('free -h | grep Mem | awk \'{print $2}\'')
+gpu = _sh('nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null || echo N/A')
+gpu_mem = _sh('nvidia-smi --query-gpu=memory.total --format=csv,noheader 2>/dev/null || echo N/A')
+
+log.info(f"  Node      : {node}")
+log.info(f"  OS        : {os_info}")
+log.info(f"  CPU model : {cpu_model}")
+log.info(f"  CPUs      : {os.cpu_count()}")
+log.info(f"  RAM       : {ram}")
+log.info(f"  GPU       : {gpu}")
+log.info(f"  GPU mem   : {gpu_mem}")
+
+
+
 log.info(f"  Output : {OUTPUT_PATH}")
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -144,21 +203,27 @@ with timed("Step 1: Format Xenium → AnnData"):
                 )
             except Exception:
                 pass
-    adata_raw.uns['spots'] = spots
 
-    adata = keep_nuclei_and_quality(
-        adata_raw,
-        tag=SAMPLE_NAME,
-        max_nucleus_distance=max_nucleus_distance,
-        min_quality=min_quality,
-        save=False,
-        output_path=OUTPUT_PATH,
-    )
+    adata_raw.uns['spots'] = spots
+    if 'nucleus_distance' in spots.columns:
+        adata = keep_nuclei_and_quality(
+            adata_raw,
+            tag=SAMPLE_NAME,
+            max_nucleus_distance=max_nucleus_distance,
+            min_quality=min_quality,
+            save=False,
+            output_path=OUTPUT_PATH,
+        )
+    else:
+        keep_ids = spots.loc[spots['overlaps_nucleus'] == 1, 'cell_id'].unique()
+        adata = adata_raw[adata_raw.obs['cell_id'].isin(keep_ids)].copy()
+        adata.uns['spots'] = spots
+        log.info("  Old format detected: filtering by overlaps_nucleus instead of nucleus_distance")
 
     adata.obs_names_make_unique()
-    adata.obs['expressed_genes'] = np.sum(adata.X > 0, axis=1)
-    adata.obs['n_counts']        = np.sum(adata.X,     axis=1)
-    adata.obs['n_genes']         = np.sum(adata.X > 0, axis=1)
+    adata.obs['expressed_genes'] = np.asarray(np.sum(adata.X > 0, axis=1)).flatten()
+    adata.obs['n_counts']        = np.asarray(np.sum(adata.X,     axis=1)).flatten()
+    adata.obs['n_genes']         = np.asarray(np.sum(adata.X > 0, axis=1)).flatten()
 
     log.info(f"  adata shape after filtering: {adata.shape}")
 
@@ -182,14 +247,6 @@ with timed("Step 3: Preprocess + cluster"):
 # 4. Domain identification
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Ensure unique_cell_id exists before domain identification
-adata.obs_names_make_unique()
-if "unique_cell_id" not in adata.obs.columns:
-    adata.obs["unique_cell_id"] = (
-        adata.obs["sample"].astype(str) + "_" +
-        adata.obs["cell_id"].astype(str)
-    )
-
 # ── 4.1 Banksy ────────────────────────────────────────────────────────────────
 with timed("Step 4.1: Banksy domain identification"):
     import random
@@ -199,9 +256,9 @@ with timed("Step 4.1: Banksy domain identification"):
 
     adata = sc.read(OUTPUT_PATH + 'combined_processed.h5ad')
     adata.obs_names_make_unique()
-    adata.obs["unique_cell_id"] = (
-        adata.obs["sample"].astype(str) + "_" +
-        adata.obs["cell_id"].astype(str)
+    adata.obs['unique_cell_id'] = (
+        adata.obs['sample'].astype(str) + '_' +
+        adata.obs['cell_id'].astype(str)
     )
     adata, adata_banksy = domains_by_banksy(
         adata,
@@ -212,11 +269,6 @@ with timed("Step 4.1: Banksy domain identification"):
 
 # ── 4.2 NBD ───────────────────────────────────────────────────────────────────
 with timed("Step 4.2: Neighbors-based domain identification (NBD)"):
-    adata.obs_names_make_unique()
-    adata.obs['unique_cell_id'] = (
-        adata.obs['sample'].astype(str) + '_' +
-        adata.obs['cell_id'].astype(str)
-    )
     adata, adata_nbd = domains_by_nbd(
         adata,
         hyperparameters_nbd=hyperparameters_nbd,
@@ -248,6 +300,7 @@ log.info("Step 5: SpaGE imputation — skipped (no scRNA-seq reference).")
 # 6. Spatially variable genes (Moran's I)
 # ══════════════════════════════════════════════════════════════════════════════
 with timed("Step 6: Spatially variable genes (Moran's I)"):
+    import squidpy as sq
     adata, hs_results = svf_moranI(adata, radius=50.0)
     log.info(f"  Top 10 SVGs:\n{hs_results.head(10)}")
     if save:

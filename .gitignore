@@ -1,6 +1,6 @@
 data/
 envs/
-logs/
+logs/*.log
 pipeline_output/
 Xenium_benchmarking/
 *.log

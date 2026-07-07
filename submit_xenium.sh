@@ -10,15 +10,16 @@ echo "Job started : $(date)"
 echo "Node        : $(hostname)"
 echo "Node list   : $SLURM_NODELIST"
 echo "CPUs        : $SLURM_CPUS_PER_TASK"
+echo "CPU model   : $(lscpu | grep 'Model name' | awk -F: '{print $2}' | xargs)"
 echo "Memory      : $SLURM_MEM_PER_NODE MB"
  
 # ── Activate conda env ────────────────────────────────────────────────────────
-export PATH=/containers/images/miniconda3/bin:$PATH
-source /containers/images/miniconda3/etc/profile.d/conda.sh
-conda activate ~/xenium_benchmark/envs/xb
+export PATH=/shared/containers/images/miniconda3/bin:$PATH
+source /shared/containers/images/miniconda3/etc/profile.d/conda.sh
+conda activate ~/benchmark-spatial-transcriptomics/envs/xb
  
 # ── Run pipeline ──────────────────────────────────────────────────────────────
-cd ~/xenium_benchmark/Xenium_benchmarking
-python ~/xenium_benchmark/run_xenium_benchmark.py
+cd ~/benchmark-spatial-transcriptomics/Xenium_benchmarking
+python ~/benchmark-spatial-transcriptomics/run_xenium_benchmark.py
  
 echo "Job finished: $(date)"
